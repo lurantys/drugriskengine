@@ -1,0 +1,8 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+synthea-output/
+clinical_knowledge.db
+alerts_audit.db
+hapi-fhir-jpaserver-starter/
+maven/
