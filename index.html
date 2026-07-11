@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafeHealth Clinical Portal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','system-ui','-apple-system','sans-serif'],mono:['JetBrains Mono','SF Mono','Consolas','monospace']}}}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 h-screen overflow-hidden">
+
+<div class="flex h-screen">
+
+  <!-- PATIENT DIRECTORY -->
+  <div class="w-80 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
+    <div class="px-4 py-3 border-b border-slate-200">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span id="sidebar-title" class="text-sm font-semibold text-slate-700">Patient Directory</span>
+        </div>
+        <button id="lang-toggle" onclick="toggleLanguage()" class="text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-600 px-2 py-0.5 rounded transition">FR</button>
+      </div>
+      <div class="relative mt-2">
+        <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="search-input" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="Search patient..." oninput="filterPatients()" class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-700 placeholder-slate-400 focus:border-slate-400 focus:ring-0 outline-none font-mono">
+      </div>
+    </div>
+    <div id="patient-list" class="flex-1 overflow-y-auto">
+      <div class="flex items-center justify-center py-12 text-slate-400 text-xs gap-1.5">
+        <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        <span data-i18n="loading">Loading...</span>
+      </div>
+    </div>
+    <div id="stats-bar" class="hidden px-4 py-2 border-t border-slate-100 bg-slate-50 text-xs text-slate-400 flex justify-between font-mono"></div>
+  </div>
+
+  <!-- DEMOGRAPHIC SIDEBAR -->
+  <div id="demographic-sidebar" class="w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 overflow-y-auto">
+    <div class="flex flex-col items-center px-5 pt-8 pb-5 border-b border-slate-100">
+      <div id="profile-initials" class="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center mb-3">
+        <span class="text-lg font-semibold text-slate-500">--</span>
+      </div>
+      <h2 id="demo-name" class="text-base font-semibold text-slate-800 text-center leading-tight">--</h2>
+      <div id="demo-meta" class="text-xs text-slate-400 font-mono mt-1.5 text-center leading-relaxed"></div>
+    </div>
+    <div class="px-5 py-4 space-y-3">
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-slate-400" data-i18n="activePathologies">Active Diagnoses</span>
+        <span id="demo-cond-count" class="font-mono text-slate-600 font-medium">0</span>
+      </div>
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-slate-400" data-i18n="activeMedications">Active Medications</span>
+        <span id="demo-med-count" class="font-mono text-slate-600 font-medium">0</span>
+      </div>
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-slate-400" data-i18n="alerts">Alerts</span>
+        <span id="demo-alert-count" class="font-mono text-slate-600 font-medium">0</span>
+      </div>
+      <div class="pt-3 border-t border-slate-100">
+        <span id="demo-status" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600">
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+          <span id="demo-status-text">Select a patient</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CLINICAL PANEL -->
+  <div class="flex-1 flex flex-col overflow-hidden bg-white">
+    <div class="px-6 py-3 border-b border-slate-200 bg-white">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        <span class="text-sm font-semibold text-slate-700" data-i18n="clinicalRecord">Clinical Record</span>
+      </div>
+    </div>
+
+    <div id="detail-content" class="flex-1 overflow-y-auto p-6">
+      <div class="flex flex-col items-center justify-center h-full text-slate-400">
+        <svg class="w-12 h-12 mb-2 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg>
+        <p class="text-sm font-medium" data-i18n="selectPatient">Select a patient</p>
+        <p class="text-xs mt-0.5" data-i18n="clickPatient">Click a patient in the directory.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let allPatients = [];
+let patientAlerts = {};
+let patientDetailCache = {};
+let currentLang = localStorage.getItem('cds_lang') || 'en';
+
+const TRANSLATIONS = {
+  en: {
+    title: "SafeHealth Clinical Portal",
+    sidebarTitle: "Patient Directory",
+    searchPlaceholder: "Search patient...",
+    loading: "Loading...",
+    selectPatient: "Select a patient",
+    clickPatient: "Click a patient in the directory.",
+    clinicalRecord: "Clinical Record",
+    activePathologies: "Active Diagnoses",
+    activeMedications: "Active Medications",
+    alerts: "Alerts",
+    severeAlert: "Clinical Safety Warning",
+    noAlerts: "No active safety interactions detected. Safe to prescribe.",
+    status: "Status",
+    active: "Active",
+    description: "Description",
+    condition: "Condition",
+    medication: "Medication",
+    justification: "Justification",
+    code: "Code",
+    patientID: "Patient ID",
+    dob: "DOB",
+    ageGender: "Age / Gender",
+    male: "Male",
+    female: "Female",
+    alertCount: "Alert(s)",
+    noData: "No clinical data available.",
+    error: "Error",
+    errorDesc: "Unable to load patient record.",
+    loadError: "Failed to load patient directory.",
+    noPatients: "No patients found.",
+    ok: "Safe",
+    patients: "patients",
+    withAlerts: "with alerts",
+    year: "yr",
+    CRITICAL: "CRITICAL",
+    HIGH: "HIGH",
+    MEDIUM: "MEDIUM",
+    "Pregnancy": "Pregnancy",
+    "Asthma": "Asthma",
+    "Chronic congestive heart failure (disorder)": "Chronic Congestive Heart Failure",
+    "Heart Failure": "Heart Failure",
+    "Ibuprofen": "Ibuprofen",
+    "Propranolol": "Propranolol",
+    "Spironolactone": "Spironolactone",
+    "Diabetes": "Diabetes",
+    "Chronic Kidney Disease": "Chronic Kidney Disease",
+    "Pseudoephedrine": "Pseudoephedrine",
+    "Metoprolol": "Metoprolol",
+    "ibuprofen": "Ibuprofen",
+    "furosemide 40 MG Oral Tablet": "Furosemide 40 MG Oral Tablet",
+    "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet [Toprol]": "Metoprolol Succinate 100 MG ER [Toprol]",
+    "10 ML furosemide 10 MG/ML Injection": "Furosemide 10 MG/ML Injection",
+    "lisinopril 10 MG Oral Tablet": "Lisinopril 10 MG Oral Tablet",
+    "aspirin 81 MG Oral Tablet": "Aspirin 81 MG Oral Tablet",
+    "simvastatin 20 MG Oral Tablet": "Simvastatin 20 MG Oral Tablet",
+    "albuterol 0.09 MG/ACTUAT Inhalant Solution": "Albuterol Inhaler",
+    "Body mass index 30+ - obesity (finding)": "Obesity (BMI 30+)",
+    "activeAlerts": "Active Alerts",
+    "patients_count": "patients",
+    "with_alerts": "with alerts"
+  },
+  fr: {
+    title: "Portail Clinique SafeHealth",
+    sidebarTitle: "Annuaire Patients",
+    searchPlaceholder: "Rechercher un patient...",
+    loading: "Chargement...",
+    selectPatient: "S\u00e9lectionnez un patient",
+    clickPatient: "Cliquez sur un patient dans l\u0027annuaire.",
+    clinicalRecord: "Dossier Clinique",
+    activePathologies: "Pathologies Actives",
+    activeMedications: "M\u00e9dicaments Actifs",
+    alerts: "Alertes",
+    severeAlert: "Alerte de S\u00e9curit\u00e9 Clinique",
+    noAlerts: "Aucune interaction d\u00e9tect\u00e9e. Prescription s\u00e9curis\u00e9e.",
+    status: "Statut",
+    active: "Active",
+    description: "Description",
+    condition: "Pathologie",
+    medication: "M\u00e9dicament",
+    justification: "Justification",
+    code: "Code",
+    patientID: "ID Patient",
+    dob: "Date de Naissance",
+    ageGender: "\u00c2ge / Sexe",
+    male: "Homme",
+    female: "Femme",
+    alertCount: "Alerte(s)",
+    noData: "Aucune donn\u00e9e clinique disponible.",
+    error: "Erreur",
+    errorDesc: "Impossible de charger le dossier.",
+    loadError: "\u00c9chec du chargement de l\u0027annuaire.",
+    noPatients: "Aucun patient trouv\u00e9.",
+    ok: "S\u00fbr",
+    patients: "patients",
+    withAlerts: "avec alertes",
+    year: "an",
+    CRITICAL: "CRITIQUE",
+    HIGH: "\u00c9LEV\u00c9",
+    MEDIUM: "MOYEN",
+    "Pregnancy": "Grossesse",
+    "Asthma": "Asthme",
+    "Chronic congestive heart failure (disorder)": "Insuffisance Cardiaque Chronique Congestive",
+    "Heart Failure": "Insuffisance Cardiaque",
+    "Ibuprofen": "Ibuprof\u00e8ne",
+    "Propranolol": "Propranolol",
+    "Spironolactone": "Spironolactone",
+    "Diabetes": "Diab\u00e8te",
+    "Chronic Kidney Disease": "Insuffisance R\u00e9nale Chronique",
+    "Pseudoephedrine": "Pseudo\u00e9ph\u00e9drine",
+    "Metoprolol": "M\u00e9toprolol",
+    "ibuprofen": "Ibuprof\u00e8ne",
+    "furosemide 40 MG Oral Tablet": "Comprim\u00e9 Oral de Furos\u00e9mide 40 MG",
+    "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet [Toprol]": "M\u00e9toprolol Succinate 100 MG LP [Toprol]",
+    "10 ML furosemide 10 MG/ML Injection": "Injection de Furos\u00e9mide 10 MG/ML",
+    "lisinopril 10 MG Oral Tablet": "Comprim\u00e9 Oral de Lisinopril 10 MG",
+    "aspirin 81 MG Oral Tablet": "Comprim\u00e9 Oral d\u0027Aspirine 81 MG",
+    "simvastatin 20 MG Oral Tablet": "Comprim\u00e9 Oral de Simvastatine 20 MG",
+    "albuterol 0.09 MG/ACTUAT Inhalant Solution": "Solution Inhal\u00e9e d\u0027Albut\u00e9rol",
+    "Body mass index 30+ - obesity (finding)": "Ob\u00e9sit\u00e9 (IMC > 30)",
+    "activeAlerts": "Alertes Actives",
+    "patients_count": "patients",
+    "with_alerts": "avec alertes"
+  }
+};
+
+const ALERT_JUSTIFICATIONS = {
+  en: {
+    "Pregnancy_Ibuprofen": "Risk of fetal renal dysfunction and premature closure of ductus arteriosus when NSAIDs are taken during late pregnancy.",
+    "Asthma_Propranolol": "Non-selective beta-blocker can cause severe bronchoconstriction and trigger life-threatening asthma attacks.",
+    "Heart Failure_Ibuprofen": "NSAIDs cause sodium and fluid retention, which can acutely worsen congestive heart failure symptoms."
+  },
+  fr: {
+    "Pregnancy_Ibuprofen": "Risque de dysfonctionnement r\u00e9nal f\u0153tal et de fermeture pr\u00e9matur\u00e9e du canal art\u00e9riel lors de la prise d\u0027AINS en fin de grossesse.",
+    "Asthma_Propranolol": "Le b\u00eata-bloquant non s\u00e9lectif peut provoquer une bronchoconstriction s\u00e9v\u00e8re et d\u00e9clencher des crises d\u0027asthme mortelles.",
+    "Heart Failure_Ibuprofen": "Les AINS entra\u00eenent une r\u00e9tention de sodium et de liquide, ce qui peut aggraver consid\u00e9rablement les sympt\u00f4mes d\u0027insuffisance cardiaque."
+  }
+};
+
+function t(key) {
+  const dict = TRANSLATIONS[currentLang];
+  const enDict = TRANSLATIONS.en;
+  if (dict && dict[key] !== undefined) return dict[key];
+  if (enDict && enDict[key] !== undefined) return enDict[key];
+  return key;
+}
+
+function applyLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('cds_lang', lang);
+  document.getElementById('lang-toggle').textContent = lang === 'fr' ? 'EN' : 'FR';
+  document.documentElement.lang = lang;
+  document.title = t('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); });
+  document.getElementById('demo-status-text').textContent = t('selectPatient');
+  if (allPatients.length > 0) {
+    renderPatients(allPatients);
+    updateStats();
+    const selected = document.querySelector('.patient-card.bg-slate-100');
+    if (selected) {
+      const id = selected.getAttribute('data-patient-id');
+      if (id) renderDetailFromCache(id);
+    }
+  }
+}
+
+function toggleLanguage() {
+  applyLanguage(currentLang === 'fr' ? 'en' : 'fr');
+}
+
+(function init() {
+  applyLanguage(currentLang);
+  fetch(`${API}/patients`)
+    .then(r => r.json())
+    .then(ps => {
+      allPatients = ps;
+      return Promise.allSettled(ps.map(p => fetch(`${API}/alerts/${p.id}`).then(r => r.json())));
+    })
+    .then(rr => {
+      rr.forEach((r, i) => { if (r.status === 'fulfilled') patientAlerts[allPatients[i].id] = r.value; });
+      renderPatients(allPatients);
+      updateStats();
+      const fa = allPatients.find(p => (patientAlerts[p.id]?.alert_count || 0) > 0);
+      if (fa) selectPatient(fa.id); else if (allPatients.length) selectPatient(allPatients[0].id);
+    })
+    .catch(() => document.getElementById('patient-list').innerHTML =
+      '<div class="m-3 p-3 border-l-4 border-rose-600 bg-rose-50 text-rose-800 text-xs rounded-r">' + t('loadError') + '</div>');
+})();
+
+function renderPatients(list) {
+  const el = document.getElementById('patient-list');
+  if (!list.length) { el.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs">' + t('noPatients') + '</div>'; return; }
+  el.innerHTML = list.map(p => {
+    const a = patientAlerts[p.id], n = a?.alert_count || 0, mx = getMaxSeverity(a?.alerts || []);
+    let pillClass, dotClass, label;
+    if (n === 0) { pillClass = 'text-emerald-700 bg-emerald-50 border-emerald-200'; dotClass = 'bg-emerald-500'; label = t('ok'); }
+    else if (mx === 'critical') { pillClass = 'text-rose-700 bg-rose-50 border-rose-200'; dotClass = 'bg-rose-500'; label = n + ' ' + t('alertCount'); }
+    else if (mx === 'high') { pillClass = 'text-amber-700 bg-amber-50 border-amber-200'; dotClass = 'bg-amber-500'; label = n + ' ' + t('alertCount'); }
+    else { pillClass = 'text-yellow-700 bg-yellow-50 border-yellow-200'; dotClass = 'bg-yellow-500'; label = n + ' ' + t('alertCount'); }
+    const age = p.birth_date ? calcAge(p.birth_date) : '--';
+    const genderLabel = p.gender === 'male' ? t('male') : p.gender === 'female' ? t('female') : '?';
+    return `<div id="card-${p.id}" data-patient-id="${p.id}" onclick="selectPatient('${p.id}')" class="patient-card px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition select-none">
+      <div class="flex items-start justify-between">
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-slate-800 truncate">${esc(p.name)}</p>
+          <p class="text-xs text-slate-400 font-mono mt-0.5">ID ${esc(p.id)}</p>
+        </div>
+        <span class="shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border ${pillClass}">
+          <span class="w-1.5 h-1.5 rounded-full ${dotClass}"></span>${label}
+        </span>
+      </div>
+      <div class="flex gap-2 text-xs text-slate-400 mt-1">
+        <span class="capitalize">${genderLabel}</span>
+        <span>${age} ${t('year')}</span>
+        <span class="font-mono">${p.birth_date || '--'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectPatient(id) {
+  document.querySelectorAll('.patient-card').forEach(c => c.classList.remove('bg-slate-100'));
+  const card = document.getElementById(`card-${id}`);
+  if (card) card.classList.add('bg-slate-100');
+  if (patientDetailCache[id]) {
+    renderDetailFromCache(id);
+  } else {
+    renderDetail(id);
+  }
+}
+
+function buildAlertHtml(a) {
+  const sv = a.severity.toLowerCase();
+  let accent, bg, dotCls;
+  if (sv === 'critical') { accent = 'border-l-rose-600'; bg = 'bg-rose-50/60'; dotCls = 'text-rose-600'; }
+  else if (sv === 'high') { accent = 'border-l-amber-500'; bg = 'bg-amber-50/60'; dotCls = 'text-amber-600'; }
+  else { accent = 'border-l-yellow-500'; bg = 'bg-yellow-50/60'; dotCls = 'text-yellow-600'; }
+
+  const condName = t(a.condition) || a.condition;
+  const medName = t(a.medication_name) || a.medication_name || '--';
+  const severityLabel = t(a.severity) || a.severity;
+  const alertKey = (a.matched_keyword || a.condition) + '_' + (a.medication_name || '').replace(/\s+/g, '');
+  const justText = (ALERT_JUSTIFICATIONS[currentLang] && ALERT_JUSTIFICATIONS[currentLang][alertKey])
+                || a.justification || '';
+
+  return `<div class="${bg} border border-slate-200 border-l-4 ${accent} rounded-lg p-4">
+    <div class="flex items-center gap-1.5 mb-2">
+      <span class="text-xs font-semibold uppercase tracking-wider ${dotCls}">${esc(severityLabel)}</span>
+    </div>
+    <table class="w-full text-xs">
+      <tbody>
+        <tr><td class="text-slate-400 py-0.5 w-28 align-top">${t('condition')}</td><td class="text-slate-800 font-medium">${esc(condName)}</td></tr>
+        <tr><td class="text-slate-400 py-0.5 align-top">${t('medication')}</td><td class="text-slate-800 font-medium">${esc(medName)}</td></tr>
+        <tr><td class="text-slate-400 py-0.5 align-top">${t('justification')}</td><td class="text-slate-700 leading-relaxed">${esc(justText)}</td></tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderDemographics(p, d) {
+  const age = p.birth_date ? calcAge(p.birth_date) : '--';
+  const initials = p.name.split(' ').map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '--';
+  const genderLabel = p.gender === 'male' ? t('male') : p.gender === 'female' ? t('female') : p.gender;
+
+  document.getElementById('profile-initials').querySelector('span').textContent = initials;
+  document.getElementById('demo-name').textContent = p.name;
+  document.getElementById('demo-meta').innerHTML = `ID ${p.id}<br>${age} ${t('year')}, ${genderLabel}<br>${t('dob')}: ${p.birth_date || '--'}`;
+  document.getElementById('demo-cond-count').textContent = d.conditions?.length || 0;
+  document.getElementById('demo-med-count').textContent = d.medications?.length || 0;
+  document.getElementById('demo-alert-count').textContent = d.alerts.length;
+
+  const st = document.getElementById('demo-status');
+  const stText = document.getElementById('demo-status-text');
+  if (d.alerts.length > 0) {
+    const mx = getMaxSeverity(d.alerts);
+    if (mx === 'critical') { st.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200'; st.querySelector('span').className = 'w-1.5 h-1.5 rounded-full bg-rose-500'; }
+    else if (mx === 'high') { st.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200'; st.querySelector('span').className = 'w-1.5 h-1.5 rounded-full bg-amber-500'; }
+    else { st.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200'; st.querySelector('span').className = 'w-1.5 h-1.5 rounded-full bg-yellow-500'; }
+    stText.textContent = d.alerts.length + ' ' + t('activeAlerts');
+  } else {
+    st.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+    st.querySelector('span').className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+    stText.textContent = t('noAlerts');
+  }
+}
+
+function renderDetailContent(d) {
+  let html = '';
+
+  if (d.alerts.length) {
+    html += `<div class="mb-6"><h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">${t('severeAlert')}</h3><div class="space-y-2.5">` +
+      d.alerts.map(a => buildAlertHtml(a)).join('') +
+      `</div></div>`;
+  } else {
+    html += `<div class="mb-6"><div class="border border-slate-200 border-l-4 border-l-emerald-500 bg-emerald-50/30 rounded-lg p-4">
+      <div class="flex items-center gap-2 mb-1">
+        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <span class="text-xs font-semibold text-emerald-700">${t('noAlerts')}</span>
+      </div>
+    </div></div>`;
+  }
+
+  if (d.conditions?.length) {
+    html += `<div class="mb-6"><h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">${t('activePathologies')}</h3>
+      <div class="border border-slate-200 rounded-lg overflow-hidden">
+        <table class="w-full text-xs">
+          <thead><tr class="bg-slate-50 border-b border-slate-200">
+            <th class="text-left px-3 py-2 font-medium text-slate-500 uppercase tracking-wider w-20">${t('status')}</th>
+            <th class="text-left px-3 py-2 font-medium text-slate-500 uppercase tracking-wider">${t('description')}</th>
+          </tr></thead>
+          <tbody class="divide-y divide-slate-100">${d.conditions.map(c => `<tr class="hover:bg-slate-50">
+            <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-emerald-600"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${t('active')}</span></td>
+            <td class="px-3 py-2 text-slate-700">${esc(t(c) || c)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div></div>`;
+  }
+
+  if (d.medications?.length) {
+    html += `<div class="mb-6"><h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">${t('activeMedications')}</h3>
+      <div class="border border-slate-200 rounded-lg overflow-hidden">
+        <table class="w-full text-xs">
+          <thead><tr class="bg-slate-50 border-b border-slate-200">
+            <th class="text-left px-3 py-2 font-medium text-slate-500 uppercase tracking-wider w-20">${t('status')}</th>
+            <th class="text-left px-3 py-2 font-medium text-slate-500 uppercase tracking-wider w-36">${t('code')}</th>
+            <th class="text-left px-3 py-2 font-medium text-slate-500 uppercase tracking-wider">${t('medication')}</th>
+          </tr></thead>
+          <tbody class="divide-y divide-slate-100">${d.medications.map(m => `<tr class="hover:bg-slate-50">
+            <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-emerald-600"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${t('active')}</span></td>
+            <td class="px-3 py-2 font-mono text-slate-500">${esc(m.code)}</td>
+            <td class="px-3 py-2 text-slate-700">${esc(t(m.name) || m.name)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div></div>`;
+  }
+
+  return html || '<div class="text-sm text-slate-400 text-center py-12">' + t('noData') + '</div>';
+}
+
+function renderDetailFromCache(id) {
+  const d = patientDetailCache[id];
+  if (!d) { renderDetail(id); return; }
+  const p = allPatients.find(x => x.id === id);
+  if (!p) return;
+  renderDemographics(p, d);
+  document.getElementById('detail-content').innerHTML = renderDetailContent(d);
+}
+
+function renderDetail(id) {
+  const dc = document.getElementById('detail-content');
+  dc.innerHTML = '<div class="flex items-center justify-center py-20 text-slate-400 gap-1.5 text-xs"><svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>' + t('loading') + '</div>';
+
+  fetch(`${API}/alerts/${id}`)
+    .then(r => r.json())
+    .then(d => {
+      patientDetailCache[id] = d;
+      const p = allPatients.find(x => x.id === id);
+      if (!p) return;
+      renderDemographics(p, d);
+      dc.innerHTML = renderDetailContent(d);
+    })
+    .catch(() => dc.innerHTML = '<div class="border-l-4 border-l-rose-600 bg-rose-50 border border-slate-200 rounded-r p-4"><p class="text-xs font-semibold text-rose-800">' + t('error') + '</p><p class="text-xs text-rose-700">' + t('errorDesc') + '</p></div>');
+}
+
+function filterPatients() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  renderPatients(allPatients.filter(p => p.name.toLowerCase().includes(q) || p.id.includes(q)));
+}
+
+function calcAge(b) {
+  const d = new Date(b), n = new Date();
+  let a = n.getFullYear() - d.getFullYear();
+  if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--;
+  return a;
+}
+
+function getMaxSeverity(alerts) {
+  const o = { critical: 3, high: 2, medium: 1 };
+  let m = '';
+  alerts.forEach(a => { if (o[a.severity?.toLowerCase()] > (o[m] || 0)) m = a.severity.toLowerCase(); });
+  return m;
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function updateStats() {
+  const ttl = allPatients.length, wa = Object.values(patientAlerts).filter(d => d?.alert_count > 0).length;
+  const el = document.getElementById('stats-bar');
+  el.classList.remove('hidden');
+  el.innerHTML = `<span>${ttl} ${t('patients_count')}</span><span>${wa} ${t('with_alerts')}</span>`;
+}
+</script>
+</body>
+</html>
